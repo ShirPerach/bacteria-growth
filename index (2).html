@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>התרבות חיידקים ועמידות לאנטיביוטיקה</title>
+<link href="https://fonts.googleapis.com/css2?family=Secular+One&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Rubik',sans-serif;
+  background:#f0ecf4;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:20px 16px;
+  background-image:
+    linear-gradient(rgba(180,160,200,0.2) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,160,200,0.2) 1px,transparent 1px);
+  background-size:28px 28px;
+  overflow-x:hidden;
+}
+
+/* Title - matching Figma Secular One style with stroke */
+.title{
+  font-family:'Secular One',sans-serif;
+  font-size:clamp(28px,6vw,56px);
+  color:#bd97c4;
+  text-align:center;
+  -webkit-text-stroke:2px #7a4d8a;
+  paint-order:stroke fill;
+  text-shadow:3px 3px 0 #6b3d7a, 4px 4px 0 rgba(0,0,0,0.12);
+  margin-bottom:16px;
+  letter-spacing:1px;
+  line-height:1.2;
+}
+
+/* Population bar - matching Figma */
+.bar-wrap{
+  width:min(90%,500px);
+  height:22px;
+  border-radius:32px;
+  background:#e9d5ec;
+  border:2px solid #d4b9d9;
+  overflow:hidden;
+  margin-bottom:6px;
+}
+.bar-inner{display:flex;height:100%;direction:ltr}
+.bar-normal{background:#c2c0f5;border-radius:32px;transition:width .3s}
+.bar-resistant{transition:width .3s}
+
+/* Stats - matching Figma */
+.stats{
+  display:flex;gap:20px;justify-content:center;align-items:center;
+  font-family:'Secular One',sans-serif;
+  font-size:clamp(14px,2.5vw,20px);
+  color:#763f88;
+  margin-bottom:16px;
+  flex-wrap:wrap;
+}
+.stat-dot{
+  width:14px;height:14px;border-radius:50%;display:inline-block;
+  margin-right:4px;vertical-align:middle;
+}
+.dot-normal{background:#c2c0f5;border:2px solid #a8a6e0}
+.dot-resistant{background:#d4b9d9;border:2px solid #b89abe}
+
+/* Canvas area */
+.canvas-wrap{position:relative;margin:12px auto}
+canvas{display:block;cursor:pointer}
+/* Play button - centered over petri dish */
+.btn-play{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+  background:#5B3A7A;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(91,58,122,0.4);
+  transition:transform .15s, opacity .3s;
+  z-index:10;opacity:0.9;
+}
+.btn-play:hover{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+.btn-play:active{transform:translate(-50%,-50%) scale(0.92)}
+.btn-play svg{margin-right:-3px}
+.btn-play.running{opacity:0;pointer-events:none}
+
+/* Treatment button - pill shape matching Figma */
+.buttons{
+  display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center;
+  align-items:center;
+}
+.btn-treat{
+  position:relative;
+  height:56px;
+  min-width:200px;
+  border-radius:47px;
+  border:3px solid #9a78a6;
+  background:#f8ecfb;
+  cursor:pointer;
+  font-family:'Secular One',sans-serif;
+  font-size:clamp(16px,2.5vw,20px);
+  color:#7c2d67;
+  overflow:hidden;
+  padding:0 24px;
+  transition:transform .15s;
+}
+.btn-treat:active{transform:scale(0.96)}
+.btn-treat:disabled{opacity:0.5;cursor:not-allowed}
+/* Pill accent stripe */
+.btn-treat::before{
+  content:'';position:absolute;
+  left:45%;top:0;width:24px;height:100%;
+  background:#e5bcec;
+}
+.btn-treat::after{
+  content:'';position:absolute;
+  left:0;top:0;width:45%;height:100%;
+  background:#e5bcec;
+  border-radius:34px 0 0 34px;
+}
+.btn-treat span{position:relative;z-index:1}
+
+/* Stop button */
+.btn-stop{
+  height:56px;min-width:200px;border-radius:47px;
+  border:3px solid #c44;background:#fbeced;
+  cursor:pointer;font-family:'Secular One',sans-serif;
+  font-size:clamp(16px,2.5vw,20px);color:#c44;
+  padding:0 24px;animation:pulse 1.5s ease-in-out infinite;
+}
+
+/* Reset button - matching Figma */
+.btn-reset{
+  height:56px;min-width:120px;
+  border-radius:23px;
+  border:3px solid #9a78a6;
+  background:#f8ecfb;
+  cursor:pointer;
+  font-family:'Secular One',sans-serif;
+  font-size:clamp(18px,3vw,28px);
+  color:#9a78a6;
+  padding:0 24px;
+  transition:transform .15s;
+}
+.btn-reset:active{transform:scale(0.96)}
+
+/* Treatment panel */
+.treatment-panel{width:min(92%,500px);margin-bottom:8px;display:none}
+.treatment-panel.active{display:block}
+.treat-header{display:flex;justify-content:space-between;font-size:13px;color:#763f88;margin-bottom:3px;font-weight:600}
+.day-pills{display:flex;gap:3px;direction:ltr}
+.day-pill{flex:1;height:10px;border-radius:5px;background:#e9d5ec;border:1px solid #d4b9d9;transition:background .3s}
+.day-pill.filled{background:linear-gradient(90deg,#9a78a6,#bd97c4)}
+.immune-wrap{margin-top:4px;height:8px;border-radius:4px;background:#e9d5ec;overflow:hidden;border:1px solid #d4b9d9}
+.immune-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,#E8C85A,#FFD700);transition:width .5s;width:10%}
+.immune-bar.glow{box-shadow:0 0 10px rgba(232,200,90,0.5)}
+
+/* Scenario */
+.scenario{width:min(92%,500px);padding:12px 16px;border-radius:16px;margin-bottom:8px;
+  background:#fff;font-size:14px;line-height:1.6;text-align:center;
+  box-shadow:0 2px 12px rgba(0,0,0,0.06);display:none;font-family:'Rubik',sans-serif}
+.scenario.active{display:block}
+.scenario .label{font-weight:800;margin-bottom:4px;font-size:16px}
+.scenario .text{color:#5B4A6F}
+
+/* Day picker */
+.day-picker{
+  margin-top:10px;padding:12px 18px;border-radius:16px;
+  background:#fff;border:2px solid #d4b9d9;
+  width:min(92%,400px);box-shadow:0 2px 12px rgba(154,120,166,0.1);
+  display:none;
+}
+.day-picker.active{display:block}
+.dp-title{font-size:14px;color:#763f88;font-weight:700;margin-bottom:6px;text-align:center;font-family:'Secular One',sans-serif}
+.dp-slider{display:flex;align-items:center;gap:8px;direction:ltr}
+.dp-slider input{flex:1;accent-color:#9a78a6}
+.dp-slider span{font-size:11px;color:#9a78a6}
+.dp-boxes{display:flex;gap:3px;direction:ltr;justify-content:center;margin-top:6px}
+.dp-box{
+  width:26px;height:26px;border-radius:8px;font-size:11px;
+  display:flex;align-items:center;justify-content:center;
+  background:#e9d5ec;color:#b09abe;border:2px solid #d4b9d9;transition:all .2s;
+}
+.dp-box.on{background:#9a78a6;color:#fff;border-color:#763f88}
+.dp-box.last{font-weight:800}
+.dp-hint{text-align:center;margin-top:6px;font-size:12px;font-weight:700}
+.dp-hint.good{color:#4daa5d}.dp-hint.mid{color:#e0900a}.dp-hint.bad{color:#d94444}
+
+/* Speed */
+.speed-row{
+  display:flex;align-items:center;gap:8px;margin-top:10px;
+  font-size:12px;color:#9a78a6;direction:ltr;
+}
+.speed-row input{width:100px;accent-color:#9a78a6}
+
+/* Victory overlay */
+.victory{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:'Secular One',sans-serif;font-size:20px;color:#4daa5d;
+  text-shadow:0 1px 4px rgba(0,0,0,0.1);display:none;pointer-events:none;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+</style>
+</head>
+<body>
+
+<div class="title">התרבות חיידקים ועמידות לאנטיביוטיקה</div>
+
+<div class="bar-wrap">
+  <div class="bar-inner">
+    <div class="bar-normal" id="bar-normal" style="width:50%"></div>
+    <div class="bar-resistant" id="bar-resistant" style="width:50%"></div>
+  </div>
+</div>
+
+<div class="stats">
+  <span><span class="stat-dot dot-normal"></span> רגילים: <span id="cnt-normal">0</span></span>
+  <span><span class="stat-dot dot-resistant"></span> עמידים לאנטיביוטיקה: <span id="cnt-resistant">0</span></span>
+</div>
+
+<div class="treatment-panel" id="treatment-panel">
+  <div class="treat-header">
+    <span>💊 יום <span id="treat-day">0</span> / <span id="treat-total">10</span></span>
+    <span>🛡️ מערכת חיסון: <span id="immune-pct">10</span>%</span>
+  </div>
+  <div class="day-pills" id="day-pills"></div>
+  <div class="immune-wrap"><div class="immune-bar" id="immune-bar"></div></div>
+</div>
+
+<div class="scenario" id="scenario-msg">
+  <div class="label" id="scenario-label"></div>
+  <div class="text" id="scenario-text"></div>
+</div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="petri"></canvas>
+  <button class="btn-play" id="btn-play" onclick="toggleRun()">
+    <svg width="22" height="26" viewBox="0 0 20 24" fill="white" id="play-icon"><polygon points="0,0 20,12 0,24"/></svg>
+  </button>
+  <div class="victory" id="victory">✨ כל החיידקים חוסלו!</div>
+</div>
+
+<div class="buttons">
+  <button class="btn-treat" id="btn-treat" onclick="onTreatClick()" disabled><span>טיפול אנטיביוטי</span></button>
+  <button class="btn-stop" id="btn-stop" style="display:none" onclick="stopEarly()">🛑 הפסקי טיפול!</button>
+  <button class="btn-reset" onclick="reset()">איפוס</button>
+</div>
+
+<div class="day-picker" id="day-picker">
+  <div class="dp-title">כמה ימים לקחת את התרופה?</div>
+  <div class="dp-slider">
+    <span>1</span>
+    <input type="range" min="1" max="10" value="10" id="day-slider" oninput="updateDayPicker()">
+    <span>10</span>
+  </div>
+  <div class="dp-boxes" id="day-boxes"></div>
+  <div class="dp-hint" id="day-hint"></div>
+</div>
+
+<div class="speed-row">
+  <span>🐢</span>
+  <input type="range" min="0.3" max="3" step="0.1" value="1" id="speed-slider" oninput="speed=parseFloat(this.value);document.getElementById('speed-val').textContent='x'+speed.toFixed(1)">
+  <span>🐇</span>
+  <span id="speed-val">x1.0</span>
+</div>
+
+<script>
+const MAX_BACTERIA=250,SPLIT_TIME=2400,MUTATION_CHANCE=.05,KILL_DUR=1000,MAX_DAYS=10,MS_PER_DAY=3000,PETRI_RATIO=.42;
+let bacteria=[],running=false,generation=0,speed=1,nextId=10,simTime=0;
+let treating=false,treatDay=0,treatStart=0,treatmentDone=false;
+let immuneStrength=.1,peakPop=0,chosenDays=10,scenario=null;
+let immuneAttacking=false,showDayPicker=false,lastFrame=0;
+
+const imgN=new Image(),imgR=new Image();
+imgN.src='bacteria-normal.png';imgR.src='bacteria-resistant.png';
+
+const canvas=document.getElementById('petri'),ctx=canvas.getContext('2d');
+let W,H,cx,cy,pR;
+
+function resize(){
+  const wrap=document.getElementById('canvas-wrap');
+  const s=Math.min(wrap.parentElement.clientWidth-32,520);
+  W=H=s;
+  canvas.width=s*devicePixelRatio;canvas.height=s*devicePixelRatio;
+  canvas.style.width=s+'px';canvas.style.height=s+'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  cx=s/2;cy=s/2;pR=s*PETRI_RATIO;
+}
+window.addEventListener('resize',resize);resize();
+
+function randC(r){const a=Math.random()*Math.PI*2,d=Math.sqrt(Math.random())*r;return{x:cx+Math.cos(a)*d,y:cy+Math.sin(a)*d}}
+function clamp(x,y){const dx=x-cx,dy=y-cy,dist=Math.sqrt(dx*dx+dy*dy);if(dist>pR-16){const s=(pR-16)/dist;return{x:cx+dx*s,y:cy+dy*s}}return{x,y}}
+function makeB(id,res,px,py){
+  const pos=px!==undefined?clamp(px+(Math.random()-.5)*28,py+(Math.random()-.5)*28):randC(pR*.55);
+  return{id,x:pos.x,y:pos.y,rot:Math.random()*Math.PI*2,resistant:res,age:0,
+    splitTime:SPLIT_TIME+(Math.random()-.5)*900,dying:false,dieStart:0,immuneKill:false,
+    vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,wobble:Math.random()*Math.PI*2};
+}
+
+// ---- DRAWING ----
+function drawPetri(){
+  // Outer ring fill - matching Figma ellipse 1
+  ctx.beginPath();ctx.arc(cx,cy,pR+8,0,Math.PI*2);
+  ctx.fillStyle='#d4c0db';ctx.fill();
+  ctx.strokeStyle='#9a78a6';ctx.lineWidth=3;ctx.stroke();
+
+  // Middle ring (dashed) - matching Figma ellipse 3
+  ctx.beginPath();ctx.arc(cx,cy,pR+2,0,Math.PI*2);
+  ctx.fillStyle='#e9d5ec';ctx.fill();
+  ctx.setLineDash([8,6]);ctx.strokeStyle='#9a78a6';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Inner fill - matching Figma ellipse 2
+  const grad=ctx.createRadialGradient(cx*.95,cy*.9,0,cx,cy,pR);
+  grad.addColorStop(0,'#faf5fc');grad.addColorStop(.8,'#f4eaf8');grad.addColorStop(1,'#ecdaf2');
+  ctx.beginPath();ctx.arc(cx,cy,pR-6,0,Math.PI*2);
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Grid inside petri
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,pR-6,0,Math.PI*2);ctx.clip();
+  ctx.strokeStyle='rgba(180,160,200,0.15)';ctx.lineWidth=.5;
+  for(let x=0;x<W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+  for(let y=0;y<H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  ctx.restore();
+
+  // Treatment tint
+  if(treating){
+    ctx.beginPath();ctx.arc(cx,cy,pR-6,0,Math.PI*2);
+    ctx.fillStyle='rgba(154,120,166,0.04)';ctx.fill();
+    ctx.strokeStyle='#9a78a6';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.arc(cx,cy,pR-6,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawBac(b){
+  const dp=b.dying?Math.min(1,(simTime-b.dieStart)/KILL_DUR):0;
+  const gp=Math.min(1,b.age/b.splitTime);
+  const sc=(.4+gp*.6)*(b.dying?1-dp*.5:1);
+  const alpha=b.dying?1-dp:1;
+  const wx=Math.sin(b.wobble+simTime*.002)*1.5;
+  const wy=Math.cos(b.wobble+simTime*.0015)*1.5;
+  const img=b.resistant?imgR:imgN;
+  if(!img.complete)return;
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.translate(b.x+wx,b.y+wy);ctx.rotate(b.rot);
+  if(b.dying)ctx.filter=b.immuneKill?'sepia(1) brightness(1.2)':'grayscale(1) brightness(.8)';
+  const w=50*sc,h=(img.height/img.width)*w;
+  ctx.drawImage(img,-w/2,-h/2,w,h);
+  ctx.filter='none';
+  if(b.resistant&&!b.dying){
+    ctx.fillStyle='#4A7AB5';ctx.beginPath();ctx.arc(w/2-4,-h/2+4,6,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='700 7px Rubik';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('R',w/2-4,-h/2+4.5);
+  }
+  ctx.restore();
+}
+
+function drawImmune(tx,ty){
+  const p=1+Math.sin(Date.now()*.008)*.12;
+  ctx.save();ctx.translate(tx,ty);ctx.scale(p,p);
+  ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fillStyle='#FFF3C4';ctx.fill();
+  ctx.strokeStyle='#E8C85A';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.fillStyle='#E8C85A';ctx.globalAlpha=.7;ctx.fill();
+  ctx.globalAlpha=1;ctx.font='8px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('🛡️',0,1);ctx.restore();
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);drawPetri();
+  const alive=bacteria.filter(b=>!b.dying);
+  if(immuneAttacking)alive.slice(0,4).forEach((b,i)=>{
+    const a=i*Math.PI/2,ox=cx+Math.cos(a)*pR*.85,oy=cy+Math.sin(a)*pR*.85;
+    const prog=Math.min(1,(Date.now()%3000)/3000);
+    drawImmune(ox+(b.x-ox)*prog,oy+(b.y-oy)*prog);
+  });
+  bacteria.forEach(b=>drawBac(b));
+  if(alive.length===0&&bacteria.length===0&&!running){
+    // Play button is centered, no text needed
+  }
+}
+
+// ---- SIM ----
+function simulate(dt){
+  const s=dt*speed;simTime+=s;
+  for(let i=bacteria.length-1;i>=0;i--){
+    const b=bacteria[i];
+    if(b.dying&&simTime-b.dieStart>KILL_DUR){bacteria.splice(i,1);continue}
+    if(b.dying)continue;
+    b.x+=b.vx*speed;b.y+=b.vy*speed;
+    const c=clamp(b.x,b.y);
+    if(c.x!==b.x||c.y!==b.y){b.vx*=-.5;b.vy*=-.5}
+    b.x=c.x;b.y=c.y;b.vx+=(Math.random()-.5)*.04;b.vy+=(Math.random()-.5)*.04;b.age+=s;
+  }
+  const toAdd=[];let gb=false;
+  bacteria.forEach(b=>{
+    if(b.dying)return;
+    if(b.age>=b.splitTime&&bacteria.length+toAdd.length<MAX_BACTERIA){
+      gb=true;toAdd.push(makeB(nextId++,b.resistant||Math.random()<MUTATION_CHANCE,b.x,b.y));
+      b.age=0;b.splitTime=SPLIT_TIME+(Math.random()-.5)*900;b.vx=(Math.random()-.5)*.5;b.vy=(Math.random()-.5)*.5;
+    }
+  });
+  if(gb)generation++;bacteria.push(...toAdd);
+}
+
+let treatInt=null;
+function treatTick(){
+  if(!treating||!running)return;
+  const el=simTime-treatStart,day=Math.min(chosenDays,Math.floor(el/MS_PER_DAY)+1);treatDay=day;
+  const sus=bacteria.filter(b=>!b.dying&&!b.resistant).sort(()=>Math.random()-.5);
+  const kc=Math.min(sus.length,Math.ceil(Math.random()*3)+1);
+  for(let i=0;i<kc;i++)if(sus[i]){sus[i].dying=true;sus[i].dieStart=simTime}
+  const al=bacteria.filter(b=>!b.dying).length;peakPop=Math.max(peakPop,al);
+  const dr=peakPop>0?1-al/peakPop:0;
+  immuneStrength=Math.min(1,.1+dr*.5+(day/MAX_DAYS)*.45);
+  if(day>=chosenDays){
+    treating=false;treatmentDone=true;clearInterval(treatInt);
+    if(immuneStrength>=.8){
+      scenario='completed';immuneAttacking=true;let cnt=0;
+      const kt=setInterval(()=>{
+        const a=bacteria.filter(b=>!b.dying);
+        if(!a.length||cnt>50){clearInterval(kt);immuneAttacking=false;return}
+        const t=a[Math.floor(Math.random()*a.length)];t.dying=true;t.dieStart=simTime;t.immuneKill=true;cnt++;
+      },350);
+    }else scenario='shortCourse';
+    updateUI();
+  }
+  updateUI();
+}
+
+// ---- UI ----
+function updateUI(){
+  const alive=bacteria.filter(b=>!b.dying);
+  const n=alive.filter(b=>!b.resistant).length,r=alive.filter(b=>b.resistant).length,t=n+r;
+  document.getElementById('cnt-normal').textContent=n;
+  document.getElementById('cnt-resistant').textContent=r;
+  document.getElementById('bar-normal').style.width=t>0?(n/t*100)+'%':'0%';
+  document.getElementById('bar-resistant').style.width=t>0?(r/t*100)+'%':'0%';
+
+  const tp=document.getElementById('treatment-panel');
+  tp.className='treatment-panel'+((treating||treatmentDone)?' active':'');
+  document.getElementById('treat-day').textContent=treatDay;
+  document.getElementById('treat-total').textContent=chosenDays;
+  document.getElementById('immune-pct').textContent=Math.round(immuneStrength*100);
+  const ib=document.getElementById('immune-bar');
+  ib.style.width=(immuneStrength*100)+'%';
+  ib.className='immune-bar'+(immuneStrength>.7?' glow':'');
+  let ph='';for(let i=0;i<chosenDays;i++)ph+=`<div class="day-pill${i<treatDay?' filled':''}"></div>`;
+  document.getElementById('day-pills').innerHTML=ph;
+
+  const sm=document.getElementById('scenario-msg');
+  if(scenario){
+    sm.className='scenario active';
+    const sc={
+      stopped:{l:'🛑 הפסקת טיפול מוקדמת',c:'#c44',t:'הפסקת האנטיביוטיקה לפני הזמן! העמידים לאנטיביוטיקה שרדו. בלי לחץ מהתרופה, הם מתרבים ומשתלטים.'},
+      shortCourse:{l:'⚠️ טיפול קצר מדי',c:'#e0900a',t:'הטיפול היה קצר מדי! מערכת החיסון לא הצליחה להתחזק מספיק כדי לטפל בחיידקים העמידים לאנטיביוטיקה.'},
+      completed:{l:'✅ טיפול מלא!',c:'#4daa5d',t:'הטיפול המלא הוריד את האוכלוסייה מספיק — מערכת החיסון סיימה את העבודה וחיסלה גם את העמידים!'},
+    }[scenario];
+    document.getElementById('scenario-label').textContent=sc.l;
+    document.getElementById('scenario-label').style.color=sc.c;
+    document.getElementById('scenario-text').textContent=sc.t;
+    sm.style.borderColor=sc.c+'40';
+  }else sm.className='scenario';
+
+  // Play button - centered on petri, visible when paused
+  const bp=document.getElementById('btn-play');
+  const pi=document.getElementById('play-icon');
+  if(running){
+    bp.className='btn-play running';
+    pi.innerHTML='<rect x="1" y="1" width="6" height="22" rx="1"/><rect x="13" y="1" width="6" height="22" rx="1"/>';
+  }else{
+    bp.className='btn-play';
+    pi.innerHTML='<polygon points="0,0 20,12 0,24"/>';
+  }
+
+  const bt=document.getElementById('btn-treat'),bs=document.getElementById('btn-stop');
+  if(treating){bt.style.display='none';bs.style.display=''}
+  else if(showDayPicker){bt.style.display='';bt.querySelector('span').textContent=`התחל טיפול (${chosenDays} ימים)`;bt.disabled=false;bs.style.display='none'}
+  else{bt.style.display=treatmentDone?'none':'';bt.querySelector('span').textContent='טיפול אנטיביוטי';bt.disabled=!running||t<5;bs.style.display='none'}
+
+  document.getElementById('day-picker').className='day-picker'+(showDayPicker&&!treating?' active':'');
+  document.getElementById('victory').style.display=(t===0&&scenario==='completed')?'block':'none';
+}
+
+function updateDayPicker(){
+  chosenDays=parseInt(document.getElementById('day-slider').value);
+  let h='';for(let i=0;i<MAX_DAYS;i++){const on=i<chosenDays;h+=`<div class="dp-box${on?' on':''}${i===chosenDays-1?' last':''}">${i+1}</div>`}
+  document.getElementById('day-boxes').innerHTML=h;
+  const hint=document.getElementById('day-hint');
+  if(chosenDays>=8){hint.textContent='✅ טיפול מלא מומלץ';hint.className='dp-hint good'}
+  else if(chosenDays>=5){hint.textContent='⚠️ עלול להיות קצר';hint.className='dp-hint mid'}
+  else{hint.textContent='❌ קצר מדי!';hint.className='dp-hint bad'}
+  updateUI();
+}
+
+function toggleRun(){
+  if(!bacteria.length)initB();running=!running;if(running)requestAnimationFrame(loop);updateUI();
+}
+function onTreatClick(){if(showDayPicker){showDayPicker=false;startTreat()}else{showDayPicker=true;updateDayPicker()}updateUI()}
+function startTreat(){if(treating||treatmentDone)return;treating=true;treatStart=simTime;treatDay=1;peakPop=bacteria.filter(b=>!b.dying).length;scenario=null;treatInt=setInterval(treatTick,200);updateUI()}
+function stopEarly(){treating=false;treatmentDone=true;clearInterval(treatInt);scenario='stopped';updateUI()}
+function initB(){bacteria=[];nextId=10;for(let i=0;i<5;i++)bacteria.push(makeB(nextId++,i===0))}
+function reset(){running=false;treating=false;treatmentDone=false;treatDay=0;immuneStrength=.1;peakPop=0;scenario=null;immuneAttacking=false;showDayPicker=false;generation=0;simTime=0;clearInterval(treatInt);bacteria=[];updateUI();render()}
+function loop(ts){if(!running)return;const dt=lastFrame?Math.min(ts-lastFrame,50):16;lastFrame=ts;simulate(dt);render();updateUI();requestAnimationFrame(loop)}
+
+canvas.addEventListener('click',()=>{if(running)toggleRun()});
+initB();updateUI();render();
+</script>
+</body>
+</html>
