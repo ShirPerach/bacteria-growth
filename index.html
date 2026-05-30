@@ -45,8 +45,8 @@ body{
   margin-bottom:6px;
 }
 .bar-inner{display:flex;height:100%;direction:ltr}
-.bar-normal{background:#c2c0f5;border-radius:32px;transition:width .3s}
-.bar-resistant{transition:width .3s}
+.bar-normal{background:#c4a8e0;border-radius:32px 0 0 32px;transition:width .3s}
+.bar-resistant{background:#7BA3D4;border-radius:0 32px 32px 0;transition:width .3s}
 
 /* Stats - matching Figma */
 .stats{
@@ -61,8 +61,8 @@ body{
   width:14px;height:14px;border-radius:50%;display:inline-block;
   margin-right:4px;vertical-align:middle;
 }
-.dot-normal{background:#c2c0f5;border:2px solid #a8a6e0}
-.dot-resistant{background:#d4b9d9;border:2px solid #b89abe}
+.dot-normal{background:#c4a8e0;border:2px solid #9a78a6}
+.dot-resistant{background:#7BA3D4;border:2px solid #4A7AB5}
 
 /* Canvas area */
 .canvas-wrap{position:relative;margin:12px auto}
@@ -290,8 +290,10 @@ function randC(r){const a=Math.random()*Math.PI*2,d=Math.sqrt(Math.random())*r;r
 function clamp(x,y){const dx=x-cx,dy=y-cy,dist=Math.sqrt(dx*dx+dy*dy);if(dist>pR-16){const s=(pR-16)/dist;return{x:cx+dx*s,y:cy+dy*s}}return{x,y}}
 function makeB(id,res,px,py){
   const pos=px!==undefined?clamp(px+(Math.random()-.5)*28,py+(Math.random()-.5)*28):randC(pR*.55);
+  // Resistant bacteria have a fitness cost: ~25% slower reproduction
+  const baseSplit=res?SPLIT_TIME*1.25:SPLIT_TIME;
   return{id,x:pos.x,y:pos.y,rot:Math.random()*Math.PI*2,resistant:res,age:0,
-    splitTime:SPLIT_TIME+(Math.random()-.5)*900,dying:false,dieStart:0,immuneKill:false,
+    splitTime:baseSplit+(Math.random()-.5)*900,dying:false,dieStart:0,immuneKill:false,
     vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,wobble:Math.random()*Math.PI*2};
 }
 
@@ -396,8 +398,12 @@ function simulate(dt){
   bacteria.forEach(b=>{
     if(b.dying)return;
     if(b.age>=b.splitTime&&bacteria.length+toAdd.length<MAX_BACTERIA){
-      gb=true;toAdd.push(makeB(nextId++,b.resistant||Math.random()<MUTATION_CHANCE,b.x,b.y));
-      b.age=0;b.splitTime=SPLIT_TIME+(Math.random()-.5)*900;b.vx=(Math.random()-.5)*.5;b.vy=(Math.random()-.5)*.5;
+      gb=true;
+      const childRes=b.resistant||Math.random()<MUTATION_CHANCE;
+      toAdd.push(makeB(nextId++,childRes,b.x,b.y));
+      b.age=0;
+      b.splitTime=(b.resistant?SPLIT_TIME*1.25:SPLIT_TIME)+(Math.random()-.5)*900;
+      b.vx=(Math.random()-.5)*.5;b.vy=(Math.random()-.5)*.5;
     }
   });
   if(gb)generation++;bacteria.push(...toAdd);
@@ -410,9 +416,9 @@ function treatTick(){
   const sus=bacteria.filter(b=>!b.dying&&!b.resistant).sort(()=>Math.random()-.5);
   const kc=Math.min(sus.length,Math.ceil(Math.random()*3)+1);
   for(let i=0;i<kc;i++)if(sus[i]){sus[i].dying=true;sus[i].dieStart=simTime}
-  const al=bacteria.filter(b=>!b.dying).length;peakPop=Math.max(peakPop,al);
-  const dr=peakPop>0?1-al/peakPop:0;
-  immuneStrength=Math.min(1,.1+dr*.5+(day/MAX_DAYS)*.45);
+  // Immune strength based on treatment duration (day/MAX_DAYS)
+  // Full 10-day course = 100%, 8 days = 80% (threshold), 7 days = 70% (fails)
+  immuneStrength=Math.min(1,day/MAX_DAYS);
   if(day>=chosenDays){
     treating=false;treatmentDone=true;clearInterval(treatInt);
     if(immuneStrength>=.8){
