@@ -263,7 +263,7 @@ canvas{display:block;cursor:pointer}
 </div>
 
 <script>
-const MAX_BACTERIA=150,SPLIT_TIME=2400,MUTATION_CHANCE=.05,KILL_DUR=1000,MAX_DAYS=10,MS_PER_DAY=3000,PETRI_RATIO=.42;
+const MAX_BACTERIA=150,SPLIT_TIME=2400,MUTATION_CHANCE=.05,KILL_DUR=500,MAX_DAYS=10,MS_PER_DAY=3000,PETRI_RATIO=.42;
 let bacteria=[],running=false,generation=0,speed=1,nextId=10,simTime=0;
 let treating=false,treatDay=0,treatStart=0,treatmentDone=false;
 let immuneStrength=.1,peakPop=0,chosenDays=10,scenario=null;
@@ -395,6 +395,8 @@ function simulate(dt){
   const toAdd=[];let gb=false;
   bacteria.forEach(b=>{
     if(b.dying||immuneAttacking)return;
+    // During antibiotic treatment, susceptible bacteria can't reproduce
+    if(treating&&!b.resistant)return;
     if(b.age>=b.splitTime&&bacteria.length+toAdd.length<MAX_BACTERIA){
       gb=true;
       const childRes=b.resistant||Math.random()<MUTATION_CHANCE;
@@ -423,12 +425,12 @@ function treatTick(){
       scenario='completed';immuneAttacking=true;
       const kt=setInterval(()=>{
         const a=bacteria.filter(b=>!b.dying);
-        if(a.length){
-          const t=a[Math.floor(Math.random()*a.length)];t.dying=true;t.dieStart=simTime;t.immuneKill=true;
+        for(let i=0;i<Math.min(6,a.length);i++){
+          const t=a[Math.floor(Math.random()*a.length)];
+          if(!t.dying){t.dying=true;t.dieStart=simTime;t.immuneKill=true}
         }
-        // Stop only when ALL bacteria fully removed (death animation done)
         if(!bacteria.length){clearInterval(kt);immuneAttacking=false;updateUI()}
-      },350);
+      },150);
     }else scenario='shortCourse';
     updateUI();
   }
