@@ -394,7 +394,7 @@ function simulate(dt){
   }
   const toAdd=[];let gb=false;
   bacteria.forEach(b=>{
-    if(b.dying)return;
+    if(b.dying||immuneAttacking)return;
     if(b.age>=b.splitTime&&bacteria.length+toAdd.length<MAX_BACTERIA){
       gb=true;
       const childRes=b.resistant||Math.random()<MUTATION_CHANCE;
