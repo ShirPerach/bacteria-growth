@@ -161,6 +161,80 @@ canvas{display:block;cursor:pointer}
 .scenario .label{font-weight:800;margin-bottom:4px;font-size:16px}
 .scenario .text{color:#5B4A6F}
 
+/* FAQ Popup */
+.faq-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0);
+  display:none;align-items:center;justify-content:center;
+  z-index:100;padding:16px;
+  transition:background .5s;
+}
+.faq-overlay.active{display:flex;animation:fadeOverlay .5s forwards}
+.faq-card{
+  width:min(95%,480px);max-height:85vh;
+  border-radius:24px;
+  border:3px solid #4a3a8a;
+  overflow:hidden;
+  box-shadow:0 8px 32px rgba(74,58,138,0.3);
+  display:flex;flex-direction:column;
+  opacity:0;transform:scale(0.85) translateY(20px);
+  animation:popIn .5s ease-out .2s forwards;
+}
+.faq-header{
+  background:linear-gradient(135deg,#7B2D8E,#5B3A9A);
+  padding:16px 20px;
+  text-align:center;
+}
+.faq-header h2{
+  font-family:'Secular One',sans-serif;
+  color:#fff;font-size:22px;margin:0;
+}
+.faq-body{
+  background:#f4e6f9;
+  padding:16px;
+  overflow-y:auto;flex:1;
+}
+.faq-item{
+  background:#fff;
+  border-radius:14px;
+  margin-bottom:8px;
+  overflow:hidden;
+  border:2px solid #e0cce8;
+  transition:border-color .2s;
+}
+.faq-item.open{border-color:#9a78a6}
+.faq-q{
+  padding:12px 16px;
+  cursor:pointer;
+  font-family:'Rubik',sans-serif;
+  font-weight:700;font-size:14px;
+  color:#5B3A7A;
+  display:flex;justify-content:space-between;align-items:center;
+  user-select:none;
+}
+.faq-q:hover{background:#f9f2fc}
+.faq-arrow{
+  font-size:18px;transition:transform .2s;color:#9a78a6;
+}
+.faq-item.open .faq-arrow{transform:rotate(180deg)}
+.faq-a{
+  max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;
+  padding:0 16px;
+  font-family:'Rubik',sans-serif;
+  font-size:13px;line-height:1.7;color:#5B4A6F;
+}
+.faq-item.open .faq-a{
+  max-height:300px;padding:0 16px 14px;
+}
+.faq-close{
+  display:block;margin:12px auto 4px;
+  padding:10px 32px;border-radius:14px;
+  border:2px solid #9a78a6;background:#fff;
+  font-family:'Secular One',sans-serif;
+  font-size:16px;color:#7B2D8E;cursor:pointer;
+}
+.faq-close:hover{background:#f4e6f9}
+
 /* Day picker */
 .day-picker{
   margin-top:10px;padding:12px 18px;border-radius:16px;
@@ -198,6 +272,8 @@ canvas{display:block;cursor:pointer}
   text-shadow:0 1px 4px rgba(0,0,0,0.1);display:none;pointer-events:none;
 }
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes fadeOverlay{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,0.4)}}
+@keyframes popIn{from{opacity:0;transform:scale(0.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 </style>
 </head>
 <body>
@@ -228,6 +304,16 @@ canvas{display:block;cursor:pointer}
 <div class="scenario" id="scenario-msg">
   <div class="label" id="scenario-label"></div>
   <div class="text" id="scenario-text"></div>
+</div>
+
+<div class="faq-overlay" id="faq-overlay" onclick="if(event.target===this)closeFaq()">
+  <div class="faq-card">
+    <div class="faq-header"><h2>שאלות נפוצות:</h2></div>
+    <div class="faq-body" id="faq-body"></div>
+    <div style="background:#f4e6f9;padding:0 16px 12px;text-align:center">
+      <button class="faq-close" onclick="closeFaq()">סגור</button>
+    </div>
+  </div>
 </div>
 
 <div class="canvas-wrap" id="canvas-wrap">
@@ -267,7 +353,7 @@ const MAX_BACTERIA=150,SPLIT_TIME=2400,MUTATION_CHANCE=.05,KILL_DUR=500,MAX_DAYS
 let bacteria=[],running=false,generation=0,speed=1,nextId=10,simTime=0;
 let treating=false,treatDay=0,treatStart=0,treatmentDone=false;
 let immuneStrength=.1,peakPop=0,chosenDays=10,scenario=null;
-let immuneAttacking=false,showDayPicker=false,lastFrame=0;
+let immuneBoost=1,showDayPicker=false,lastFrame=0;
 
 const imgN=new Image(),imgR=new Image();
 imgN.src='bacteria-normal.png';imgR.src='bacteria-resistant.png';
@@ -364,12 +450,15 @@ function drawImmune(tx,ty){
 
 function render(){
   ctx.clearRect(0,0,W,H);drawPetri();
+  // Immune cells - always visible, more when effective
   const alive=bacteria.filter(b=>!b.dying);
-  // immune cells target any remaining bacteria (alive or dying)
-  if(immuneAttacking){
-    const targets=bacteria.length>0?bacteria.slice(0,4):[];
+  const aliveCount=alive.length;
+  const effectiveness=immuneBoost>1?IMMUNE_BOOST_RATE:IMMUNE_BASE*IMMUNE_K/(aliveCount+IMMUNE_K);
+  const numCells=Math.min(6,Math.max(1,Math.round(effectiveness)));
+  if(aliveCount>0){
+    const targets=bacteria.slice(0,numCells);
     targets.forEach((b,i)=>{
-      const a=i*Math.PI/2,ox=cx+Math.cos(a)*pR*.85,oy=cy+Math.sin(a)*pR*.85;
+      const a=i*Math.PI*2/numCells,ox=cx+Math.cos(a)*pR*.88,oy=cy+Math.sin(a)*pR*.88;
       const prog=Math.min(1,(Date.now()%3000)/3000);
       drawImmune(ox+(b.x-ox)*prog,oy+(b.y-oy)*prog);
     });
@@ -381,6 +470,11 @@ function render(){
 }
 
 // ---- SIM ----
+// Immune system constants
+const IMMUNE_BASE=0.3;  // base kills per second (innate immune - very weak)
+const IMMUNE_K=10;      // half-effectiveness threshold
+const IMMUNE_BOOST_RATE=8; // kills per second with adaptive immune response
+
 function simulate(dt){
   const s=dt*speed;simTime+=s;
   for(let i=bacteria.length-1;i>=0;i--){
@@ -392,11 +486,40 @@ function simulate(dt){
     if(c.x!==b.x||c.y!==b.y){b.vx*=-.5;b.vy*=-.5}
     b.x=c.x;b.y=c.y;b.vx+=(Math.random()-.5)*.04;b.vy+=(Math.random()-.5)*.04;b.age+=s;
   }
+
+  // Always-active immune system
+  const alive=bacteria.filter(b=>!b.dying);
+  const aliveCount=alive.length;
+  if(aliveCount>0){
+    // Innate immune: weak, population-dependent (always active)
+    // Adaptive immune: strong, constant rate (after full treatment)
+    let killRate;
+    if(immuneBoost>1){
+      // Adaptive response: targeted antibodies, high constant kill rate
+      killRate=IMMUNE_BOOST_RATE;
+    }else{
+      // Innate response: overwhelmed when many bacteria
+      killRate=IMMUNE_BASE*IMMUNE_K/(aliveCount+IMMUNE_K);
+    }
+    const expectedKills=killRate*s/1000;
+    let kills=Math.floor(expectedKills);
+    if(Math.random()<(expectedKills-kills))kills++;
+    for(let k=0;k<Math.min(kills,alive.length);k++){
+      const idx=Math.floor(Math.random()*alive.length);
+      const target=alive[idx];
+      if(!target.dying){target.dying=true;target.dieStart=simTime;target.immuneKill=true}
+    }
+    immuneStrength=Math.min(1,killRate/6);
+  }
+
+  // Reproduction
   const toAdd=[];let gb=false;
   bacteria.forEach(b=>{
-    if(b.dying||immuneAttacking)return;
+    if(b.dying)return;
     // During antibiotic treatment, susceptible bacteria can't reproduce
     if(treating&&!b.resistant)return;
+    // During adaptive immune response, all bacteria suppressed
+    if(immuneBoost>1)return;
     if(b.age>=b.splitTime&&bacteria.length+toAdd.length<MAX_BACTERIA){
       gb=true;
       const childRes=b.resistant||Math.random()<MUTATION_CHANCE;
@@ -407,31 +530,29 @@ function simulate(dt){
     }
   });
   if(gb)generation++;bacteria.push(...toAdd);
+
+  // Check victory: all bacteria gone after completed treatment
+  if(treatmentDone&&scenario==='completed'&&bacteria.length===0)updateUI();
 }
 
 let treatInt=null;
 function treatTick(){
   if(!treating||!running)return;
   const el=simTime-treatStart,day=Math.min(chosenDays,Math.floor(el/MS_PER_DAY)+1);treatDay=day;
+  // Antibiotics kill susceptible bacteria
   const sus=bacteria.filter(b=>!b.dying&&!b.resistant).sort(()=>Math.random()-.5);
   const kc=Math.min(sus.length,Math.ceil(Math.random()*3)+1);
   for(let i=0;i<kc;i++)if(sus[i]){sus[i].dying=true;sus[i].dieStart=simTime}
-  // Immune strength based on treatment duration (day/MAX_DAYS)
-  // Full 10-day course = 100%, 8 days = 80% (threshold), 7 days = 70% (fails)
-  immuneStrength=Math.min(1,day/MAX_DAYS);
   if(day>=chosenDays){
     treating=false;treatmentDone=true;clearInterval(treatInt);
-    if(immuneStrength>=.8){
-      scenario='completed';immuneAttacking=true;
-      const kt=setInterval(()=>{
-        const a=bacteria.filter(b=>!b.dying);
-        for(let i=0;i<Math.min(6,a.length);i++){
-          const t=a[Math.floor(Math.random()*a.length)];
-          if(!t.dying){t.dying=true;t.dieStart=simTime;t.immuneKill=true}
-        }
-        if(!bacteria.length){clearInterval(kt);immuneAttacking=false;updateUI()}
-      },150);
-    }else scenario='shortCourse';
+    if(chosenDays>=8){
+      scenario='completed';
+      immuneBoost=5;
+      setTimeout(()=>showFaq('completed'),4000);
+    }else{
+      scenario='shortCourse';
+      setTimeout(()=>showFaq('shortCourse'),3000);
+    }
     updateUI();
   }
   updateUI();
@@ -461,9 +582,9 @@ function updateUI(){
   if(scenario){
     sm.className='scenario active';
     const sc={
-      stopped:{l:'🛑 הפסקת טיפול מוקדמת',c:'#c44',t:'הפסקת האנטיביוטיקה לפני הזמן! העמידים לאנטיביוטיקה שרדו. בלי לחץ מהתרופה, הם מתרבים ומשתלטים.'},
-      shortCourse:{l:'⚠️ טיפול קצר מדי',c:'#e0900a',t:'הטיפול היה קצר מדי! מערכת החיסון לא הצליחה להתחזק מספיק כדי לטפל בחיידקים העמידים לאנטיביוטיקה.'},
-      completed:{l:'✅ טיפול מלא!',c:'#4daa5d',t:'הטיפול המלא הוריד את האוכלוסייה מספיק — מערכת החיסון סיימה את העבודה וחיסלה גם את העמידים!'},
+      stopped:{l:'🛑 הפסקת טיפול מוקדמת',c:'#c44',t:'הפסקת האנטיביוטיקה לפני הזמן! העמידים שרדו, ומערכת החיסון מוצפת מכדי לעצור אותם. הם מתרבים ומשתלטים.'},
+      shortCourse:{l:'⚠️ טיפול קצר מדי',c:'#e0900a',t:'הטיפול היה קצר מדי! מערכת החיסון לא הספיקה לפתח תגובה חיסונית מותאמת, ולא מצליחה להתגבר על העמידים.'},
+      completed:{l:'✅ טיפול מלא!',c:'#4daa5d',t:'הטיפול הארוך הוריד את האוכלוסייה ונתן למערכת החיסון זמן לפתח תגובה מותאמת. עכשיו היא מצליחה להתגבר גם על העמידים!'},
     }[scenario];
     document.getElementById('scenario-label').textContent=sc.l;
     document.getElementById('scenario-label').style.color=sc.c;
@@ -488,7 +609,7 @@ function updateUI(){
   else{bt.style.display=treatmentDone?'none':'';bt.querySelector('span').textContent='טיפול אנטיביוטי';bt.disabled=!running||t<5;bs.style.display='none'}
 
   document.getElementById('day-picker').className='day-picker'+(showDayPicker&&!treating?' active':'');
-  document.getElementById('victory').style.display=(t===0&&scenario==='completed')?'block':'none';
+  document.getElementById('victory').style.display=(t===0&&bacteria.length===0&&scenario==='completed')?'block':'none';
 }
 
 function updateDayPicker(){
@@ -507,12 +628,45 @@ function toggleRun(){
 }
 function onTreatClick(){if(showDayPicker){showDayPicker=false;startTreat()}else{showDayPicker=true;updateDayPicker()}updateUI()}
 function startTreat(){if(treating||treatmentDone)return;treating=true;treatStart=simTime;treatDay=1;peakPop=bacteria.filter(b=>!b.dying).length;scenario=null;treatInt=setInterval(treatTick,200);updateUI()}
-function stopEarly(){treating=false;treatmentDone=true;clearInterval(treatInt);scenario='stopped';updateUI()}
-function initB(){bacteria=[];nextId=10;for(let i=0;i<5;i++)bacteria.push(makeB(nextId++,i===0))}
-function reset(){running=false;treating=false;treatmentDone=false;treatDay=0;immuneStrength=.1;peakPop=0;scenario=null;immuneAttacking=false;showDayPicker=false;generation=0;simTime=0;clearInterval(treatInt);bacteria=[];updateUI();render()}
+function stopEarly(){treating=false;treatmentDone=true;clearInterval(treatInt);scenario='stopped';updateUI();setTimeout(()=>showFaq('stopped'),3000)}
+function initB(){bacteria=[];nextId=10;for(let i=0;i<5;i++)bacteria.push(makeB(nextId++,false))}
+function reset(){running=false;treating=false;treatmentDone=false;treatDay=0;immuneStrength=.1;peakPop=0;scenario=null;immuneBoost=1;showDayPicker=false;generation=0;simTime=0;clearInterval(treatInt);bacteria=[];updateUI();render()}
 function loop(ts){if(!running)return;const dt=lastFrame?Math.min(ts-lastFrame,50):16;lastFrame=ts;simulate(dt);render();updateUI();requestAnimationFrame(loop)}
 
 canvas.addEventListener('click',()=>{if(running)toggleRun()});
+
+// ---- FAQ ----
+const FAQ_DATA={
+  completed:[
+    {q:'למה הטיפול הצליח?',a:'האנטיביוטיקה הרגה את החיידקים הרגישים והורידה את האוכלוסייה. בזמן הטיפול הארוך, מערכת החיסון פיתחה תגובה חיסונית מותאמת (נוגדנים ספציפיים) — וכך הצליחה להתגבר גם על החיידקים העמידים לאנטיביוטיקה.'},
+    {q:'למה חשוב לסיים את כל הטיפול?',a:'אם עוצרים מוקדם, נשארים חיידקים עמידים שמערכת החיסון לא מספיק חזקה כדי להתגבר עליהם. הם מתרבים ומשתלטים — ובפעם הבאה האנטיביוטיקה כבר לא תעבוד.'},
+    {q:'אם העמידים עמידים, למה הם מתו?',a:'הם עמידים לאנטיביוטיקה — לא למערכת החיסון! העמידות היא ספציפית לתרופה. מערכת החיסון משתמשת במנגנונים אחרים (נוגדנים, תאי T, פגוציטים) שלא מושפעים מהמוטציה.'},
+  ],
+  stopped:[
+    {q:'למה העמידים השתלטו?',a:'זו ברירה טבעית בפעולה! האנטיביוטיקה הרגה את הרגישים ופינתה מקום ומשאבים. העמידים, שלא הושפעו מהתרופה, התרבו בלי תחרות — והפכו לרוב האוכלוסייה.'},
+    {q:'מה יקרה בפעם הבאה שניקח אנטיביוטיקה?',a:'היא כבר לא תעבוד! כל האוכלוסייה עכשיו עמידה. הרופא יצטרך לרשום אנטיביוטיקה חזקה יותר — ולפעמים אין כזו. זו בדיוק הבעיה של עמידות לאנטיביוטיקה בעולם.'},
+    {q:'למה החיידקים מתרבים כל כך מהר?',a:'חיידקים מתרבים בחלוקה בינארית — כל חיידק מתחלק לשניים. זו צמיחה מעריכית: 1→2→4→8→16→32... תוך שעות יכולים להגיע למיליונים. בנוסף, הם צריכים רק הורה אחד, בלי רבייה מינית.'},
+  ],
+  shortCourse:[
+    {q:'מה הבעיה באוכלוסייה שכולה עמידה?',a:'מבחינת החיידקים — שונות גנטית נמוכה, שזה רע לטווח הארוך. אבל מבחינתנו — אנחנו איבדנו כלי טיפול. האנטיביוטיקה הזו חסרת תועלת, וצריך למצוא חלופה.'},
+    {q:'למה מערכת החיסון לא הצליחה?',a:'הטיפול היה קצר מדי כדי לפתח תגובה חיסונית מותאמת. מערכת החיסון תמיד עובדת, אבל כשיש יותר מדי חיידקים — היא מוצפת. היא צריכה את האנטיביוטיקה שתוריד את העומס מספיק זמן.'},
+    {q:'איך אפשר למנוע עמידות?',a:'הדבר הכי חשוב: לסיים את כל הטיפול שהרופא רשם, גם אם מרגישים טוב. בנוסף — לא לקחת אנטיביוטיקה בלי מרשם, ולא להשתמש בה נגד וירוסים (כמו הצטננות) כי היא לא עובדת עליהם.'},
+  ],
+};
+
+function showFaq(type){
+  const items=FAQ_DATA[type];if(!items)return;
+  const body=document.getElementById('faq-body');
+  body.innerHTML=items.map((item,i)=>`
+    <div class="faq-item" id="faq-${i}" onclick="toggleFaqItem(${i})">
+      <div class="faq-q"><span>${item.q}</span><span class="faq-arrow">▼</span></div>
+      <div class="faq-a">${item.a}</div>
+    </div>`).join('');
+  document.getElementById('faq-overlay').className='faq-overlay active';
+}
+function closeFaq(){document.getElementById('faq-overlay').className='faq-overlay'}
+function toggleFaqItem(i){document.getElementById('faq-'+i).classList.toggle('open')}
+
 initB();updateUI();render();
 </script>
 </body>
