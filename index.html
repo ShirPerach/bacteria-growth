@@ -365,11 +365,15 @@ function drawImmune(tx,ty){
 function render(){
   ctx.clearRect(0,0,W,H);drawPetri();
   const alive=bacteria.filter(b=>!b.dying);
-  if(immuneAttacking)alive.slice(0,4).forEach((b,i)=>{
-    const a=i*Math.PI/2,ox=cx+Math.cos(a)*pR*.85,oy=cy+Math.sin(a)*pR*.85;
-    const prog=Math.min(1,(Date.now()%3000)/3000);
-    drawImmune(ox+(b.x-ox)*prog,oy+(b.y-oy)*prog);
-  });
+  // immune cells target any remaining bacteria (alive or dying)
+  if(immuneAttacking){
+    const targets=bacteria.length>0?bacteria.slice(0,4):[];
+    targets.forEach((b,i)=>{
+      const a=i*Math.PI/2,ox=cx+Math.cos(a)*pR*.85,oy=cy+Math.sin(a)*pR*.85;
+      const prog=Math.min(1,(Date.now()%3000)/3000);
+      drawImmune(ox+(b.x-ox)*prog,oy+(b.y-oy)*prog);
+    });
+  }
   bacteria.forEach(b=>drawBac(b));
   if(alive.length===0&&bacteria.length===0&&!running){
     // Play button is centered, no text needed
@@ -416,11 +420,14 @@ function treatTick(){
   if(day>=chosenDays){
     treating=false;treatmentDone=true;clearInterval(treatInt);
     if(immuneStrength>=.8){
-      scenario='completed';immuneAttacking=true;let cnt=0;
+      scenario='completed';immuneAttacking=true;
       const kt=setInterval(()=>{
         const a=bacteria.filter(b=>!b.dying);
-        if(!a.length||cnt>50){clearInterval(kt);immuneAttacking=false;return}
-        const t=a[Math.floor(Math.random()*a.length)];t.dying=true;t.dieStart=simTime;t.immuneKill=true;cnt++;
+        if(a.length){
+          const t=a[Math.floor(Math.random()*a.length)];t.dying=true;t.dieStart=simTime;t.immuneKill=true;
+        }
+        // Stop only when ALL bacteria fully removed (death animation done)
+        if(!bacteria.length){clearInterval(kt);immuneAttacking=false;updateUI()}
       },350);
     }else scenario='shortCourse';
     updateUI();
